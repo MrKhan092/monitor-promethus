@@ -7,8 +7,12 @@ const requestCounter = new promClinet.Counter({
     help: 'Total number of HTTP requests',
     labelNames: ['method', 'route', 'status_code']
 });
-
+const activeRequestsGauge = new promClinet.Gauge({
+    name: 'active_requests',
+    help: 'Number of active requests'
+});
 function middleware(req: Request, res: Response, next: NextFunction) {
+    activeRequestsGauge.inc();
     const startTime = Date.now();
 
     res.on('finish', () => {
@@ -21,7 +25,9 @@ function middleware(req: Request, res: Response, next: NextFunction) {
             route: req.route ? req.route.path : req.path,
             status_code: res.statusCode
         });
+         activeRequestsGauge.dec();
     });
+   
 
     next();
 };
@@ -41,7 +47,12 @@ app.get('/users',(req,res)=>{
         message:"users"
     })
 });
-
+app.get('/metrics', async (req, res) => {
+    const metrics = await promClinet.register.metrics();
+    console.log(promClinet.register.contentType);
+    res.set('Content-Type', promClinet.register.contentType);
+    res.end(await promClinet.register.metrics());
+});
 app.listen(3000,()=>{
     console.log("Server is running on port 3000");
 }); 
